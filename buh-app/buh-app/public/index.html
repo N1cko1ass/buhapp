@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Бухгалтерия 3D-печати</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ===== RESET & BASE ===== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  :root {
+    --bg: #0f0f13;
+    --bg2: #17171d;
+    --bg3: #1e1e27;
+    --card: #1a1a22;
+    --border: #2a2a38;
+    --border2: #333345;
+    --accent: #7c6af7;
+    --accent2: #a99ef9;
+    --accent-glow: rgba(124,106,247,0.18);
+    --green: #22c55e;
+    --green-bg: rgba(34,197,94,0.1);
+    --red: #ef4444;
+    --red-bg: rgba(239,68,68,0.1);
+    --yellow: #f59e0b;
+    --yellow-bg: rgba(245,158,11,0.1);
+    --blue: #38bdf8;
+    --blue-bg: rgba(56,189,248,0.08);
+    --text: #e8e8f0;
+    --text2: #9898b0;
+    --text3: #5a5a72;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 4px 24px rgba(0,0,0,0.4);
+    --font-head: 'Unbounded', sans-serif;
+    --font: 'Manrope', sans-serif;
+  }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  /* ===== HEADER ===== */
+  .header {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 0 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(12px);
+  }
+  .header-inner {
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 56px;
+  }
+  .logo {
+    font-family: var(--font-head);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent2);
+    letter-spacing: -0.02em;
+    flex-shrink: 0;
+  }
+  .logo span { color: var(--text3); font-weight: 400; }
+  .sync-status {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--text3);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+  }
+  .sync-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    flex-shrink: 0;
+  }
+  .sync-dot.loading { background: var(--yellow); animation: pulse 1s infinite; }
+  .sync-dot.error { background: var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* ===== LAYOUT ===== */
+  .wrap { max-width: 900px; margin: 0 auto; padding: 20px 16px 80px; }
+
+  /* ===== TABS ===== */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 4px;
+    margin-bottom: 20px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    flex: 1;
+    min-width: 60px;
+    padding: 8px 10px;
+    font-family: var(--font);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text3);
+    background: none;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all .2s;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    letter-spacing: 0.01em;
+  }
+  .tab svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; flex-shrink: 0; }
+  .tab .tab-label { display: none; }
+  @media (min-width: 480px) { .tab .tab-label { display: inline; } }
+  .tab:hover { color: var(--text2); background: var(--bg3); }
+  .tab.active { color: var(--accent2); background: var(--accent-glow); }
+  .panel { display: none; }
+  .panel.active { display: block; animation: fadeIn .2s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+
+  /* ===== CARDS ===== */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .card-title {
+    font-family: var(--font-head);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    margin-bottom: 12px;
+  }
+
+  /* ===== METRICS ===== */
+  .metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
+  @media (min-width: 560px) { .metrics { grid-template-columns: repeat(4, 1fr); } }
+  .met {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+  }
+  .met-l { font-size: 11px; color: var(--text3); margin-bottom: 4px; }
+  .met-v { font-size: 20px; font-weight: 700; font-family: var(--font-head); color: var(--text); }
+  .met-v.g { color: var(--green); }
+  .met-v.r { color: var(--red); }
+  .met-v.a { color: var(--yellow); }
+  .met-v.p { color: var(--accent2); }
+
+  /* ===== FORMULA BOX ===== */
+  .formula-box {
+    background: var(--blue-bg);
+    border: 1px solid rgba(56,189,248,.15);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.8;
+    margin-bottom: 14px;
+  }
+  .formula-box strong { color: var(--blue); font-weight: 600; }
+
+  /* ===== INPUTS ===== */
+  input[type=text], input[type=number], select, textarea {
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 13px;
+    padding: 8px 10px;
+    width: 100%;
+    outline: none;
+    transition: border-color .2s;
+    -webkit-appearance: none;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  textarea { resize: vertical; line-height: 1.6; }
+  select option { background: var(--bg2); }
+  input[type=number] { -moz-appearance: textfield; }
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+  /* ===== BUTTONS ===== */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 14px;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border2);
+    background: var(--bg3);
+    color: var(--text2);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all .15s;
+    flex-shrink: 0;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent2); background: var(--accent-glow); }
+  .btn-p {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .btn-p:hover { background: var(--accent2); border-color: var(--accent2); color: var(--bg); }
+  .btn-d { color: var(--red); border-color: transparent; background: none; padding: 6px 8px; }
+  .btn-d:hover { background: var(--red-bg); border-color: var(--red); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; flex-shrink: 0; }
+
+  /* ===== BADGES ===== */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .bs { background: var(--green-bg); color: var(--green); }
+  .br { background: var(--red-bg); color: var(--red); }
+  .ba { background: var(--yellow-bg); color: var(--yellow); }
+  .bi { background: var(--blue-bg); color: var(--blue); }
+  .bv { background: var(--accent-glow); color: var(--accent2); }
+
+  /* ===== ТОВАР CARD ===== */
+  .tovar-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    margin-bottom: 10px;
+    transition: border-color .2s;
+  }
+  .tovar-card:hover { border-color: var(--border2); }
+  .tovar-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .tovar-name { font-weight: 700; font-size: 14px; flex: 1; min-width: 120px; }
+  .tovar-cost { text-align: right; flex-shrink: 0; }
+  .tovar-cost-val { font-family: var(--font-head); font-size: 18px; font-weight: 700; color: var(--text); }
+  .tovar-fields { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  @media (min-width: 480px) { .tovar-fields { grid-template-columns: repeat(4, 1fr); } }
+  .field-group label { display: block; font-size: 11px; color: var(--text3); margin-bottom: 3px; }
+  .cost-mini { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 10px; }
+  .cost-mini-item {
+    background: var(--bg2);
+    border-radius: 6px;
+    padding: 5px 4px;
+    text-align: center;
+    font-size: 10px;
+  }
+  .cost-mini-item .cl { color: var(--text3); margin-bottom: 2px; }
+  .cost-mini-item .cv { font-weight: 600; font-size: 11px; }
+
+  /* ===== MAT ROW ===== */
+  .mat-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .mat-row:last-child { border-bottom: none; }
+  .mat-name { flex: 1; font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mat-val { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text2); flex-shrink: 0; }
+  .mat-val input { width: 85px; }
+
+  /* ===== ROW FORM ===== */
+  .row-form {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .row-form .field-group { flex: 1; min-width: 80px; }
+  .row-form label { font-size: 11px; color: var(--text3); display: block; margin-bottom: 3px; }
+
+  /* ===== TABLE ===== */
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    text-align: left;
+    padding: 8px 10px;
+    font-size: 10px;
+    font-weight: 600;
+    font-family: var(--font-head);
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    border-bottom: 1px solid var(--border);
+  }
+  td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg3); }
+  td input { max-width: 110px; }
+
+  /* ===== PRICE OPTIONS ===== */
+  .price-opts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+  @media (max-width: 400px) { .price-opts { grid-template-columns: 1fr; } }
+  .price-opt {
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    padding: 12px 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .15s;
+    background: var(--bg3);
+  }
+  .price-opt:hover { border-color: var(--accent); }
+  .price-opt.selected { border-color: var(--accent); background: var(--accent-glow); }
+  .price-opt-label { font-size: 11px; color: var(--text3); margin-bottom: 2px; }
+  .price-opt-val { font-family: var(--font-head); font-size: 17px; font-weight: 700; margin: 4px 0; }
+  .price-opt-desc { font-size: 10px; color: var(--text3); margin-bottom: 4px; }
+
+  /* ===== CHAT ===== */
+  .chat-wrap {
+    max-height: 360px;
+    overflow-y: auto;
+    margin-bottom: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border2) transparent;
+  }
+  .chat-msg {
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    line-height: 1.6;
+    max-width: 90%;
+  }
+  .chat-user { background: var(--accent-glow); border: 1px solid rgba(124,106,247,.25); color: var(--text); align-self: flex-end; }
+  .chat-ai { background: var(--bg3); border: 1px solid var(--border2); color: var(--text); align-self: flex-start; }
+  .chat-ai.thinking { color: var(--text3); font-style: italic; }
+  .typing::after { content: '●●●'; animation: typing 1.2s steps(4) infinite; font-size: 10px; letter-spacing: 2px; }
+  @keyframes typing { 0%{content:'●'} 33%{content:'●●'} 66%{content:'●●●'} 100%{content:'●'} }
+  .quick-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chat-input-row { display: flex; gap: 8px; align-items: flex-end; }
+  .chat-input-row textarea { flex: 1; }
+
+  /* ===== МАТ СЕКЦИЯ В ТОВАРЕ ===== */
+  .mat-section { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+  .mat-section-title { font-size: 11px; color: var(--text3); margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+  .mat-add-row { display: flex; gap: 6px; margin-top: 6px; }
+
+  /* ===== ИТОГИ ДЕТАЛЬНЫЕ ===== */
+  .detail-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    margin-bottom: 10px;
+    background: var(--bg3);
+  }
+  .detail-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .detail-bars { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+  .detail-bar { background: var(--bg2); border-radius: 6px; padding: 5px; text-align: center; }
+  .detail-bar .dl { font-size: 10px; color: var(--text3); margin-bottom: 2px; }
+  .detail-bar .dv { font-size: 12px; font-weight: 600; }
+  .detail-bar .dp { font-size: 10px; color: var(--text3); }
+
+  /* ===== TOAST ===== */
+  .toast-wrap { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 999; display: flex; flex-direction: column; gap: 6px; align-items: center; pointer-events: none; }
+  .toast {
+    background: var(--card);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    padding: 8px 16px;
+    font-size: 13px;
+    color: var(--text);
+    box-shadow: var(--shadow);
+    animation: toastIn .2s ease;
+    pointer-events: auto;
+  }
+  .toast.ok { border-color: rgba(34,197,94,.3); color: var(--green); }
+  .toast.err { border-color: rgba(239,68,68,.3); color: var(--red); }
+  @keyframes toastIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+  /* ===== LOADING OVERLAY ===== */
+  .loading-overlay {
+    position: fixed; inset: 0; background: rgba(15,15,19,.7);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 200; backdrop-filter: blur(4px);
+  }
+  .loading-box {
+    background: var(--card);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 28px 36px;
+    text-align: center;
+    font-size: 14px;
+    color: var(--text2);
+  }
+  .spinner {
+    width: 32px; height: 32px;
+    border: 2px solid var(--border2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    margin: 0 auto 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ===== RATE TYPE BADGE ===== */
+  .rtb { font-size: 10px; padding: 2px 7px; border-radius: 20px; background: var(--blue-bg); color: var(--blue); font-weight: 600; margin-left: 6px; }
+
+  /* ===== MOBILE BOTTOM PADDING ===== */
+  @media (max-width: 600px) { .wrap { padding-bottom: 100px; } }
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="loading-box">
+    <div class="spinner"></div>
+    Загружаем данные...
+  </div>
+</div>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-inner">
+    <div class="logo">3D<span>.</span>БУХ</div>
+    <div class="sync-status">
+      <div class="sync-dot loading" id="sync-dot"></div>
+      <span id="sync-label">Синхронизация...</span>
+    </div>
+  </div>
+</header>
+
+<!-- MAIN -->
+<main class="wrap">
+
+  <!-- TABS -->
+  <div class="tabs" role="tablist">
+    <button class="tab active" onclick="sw('t')" role="tab" aria-selected="true">
+      <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+      <span class="tab-label">Товары</span>
+    </button>
+    <button class="tab" onclick="sw('r')" role="tab">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      <span class="tab-label">Ставки</span>
+    </button>
+    <button class="tab" onclick="sw('n')" role="tab">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <span class="tab-label">Недели</span>
+    </button>
+    <button class="tab" onclick="sw('i')" role="tab">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      <span class="tab-label">Итоги</span>
+    </button>
+    <button class="tab" onclick="sw('ai')" role="tab">
+      <svg viewBox="0 0 24 24"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z"/></svg>
+      <span class="tab-label">ИИ</span>
+    </button>
+  </div>
+
+  <!-- ТОВАРЫ -->
+  <div id="p-t" class="panel active">
+    <div class="formula-box">
+      <strong>Себестоимость/шт</strong> = (пластик × г/шт) + (почасовые × часов) + (пост.расходы ÷ штук) + (аренда ÷ штук) + материалы
+    </div>
+    <div id="met-t" class="metrics"></div>
+    <div class="card">
+      <div class="card-title">Список товаров</div>
+      <div id="tlist"></div>
+      <div class="row-form">
+        <div class="field-group" style="flex:2;min-width:130px">
+          <label>Название товара</label>
+          <input type="text" id="nn" placeholder="Например: Брелок-кот">
+        </div>
+        <div class="field-group">
+          <label>Пластик г/шт</label>
+          <input type="number" id="np" placeholder="21" step="0.01">
+        </div>
+        <div class="field-group">
+          <label>Штук в партии</label>
+          <input type="number" id="nq" placeholder="10">
+        </div>
+        <div class="field-group">
+          <label>Часов печати</label>
+          <input type="number" id="nh" placeholder="8.5" step="0.1">
+        </div>
+        <div class="field-group">
+          <label>Цена продажи ₸</label>
+          <input type="number" id="npr" placeholder="1500">
+        </div>
+        <button class="btn btn-p" onclick="addT()" style="margin-top:16px">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Добавить
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- СТАВКИ -->
+  <div id="p-r" class="panel">
+    <div class="formula-box">
+      Все ставки влияют на себестоимость <strong>всех товаров мгновенно</strong>. Изменения видны всем пользователям.
+    </div>
+
+    <div class="card">
+      <div class="card-title">Почасовые ставки <span class="rtb">× часы печати</span></div>
+      <div id="rlist-h"></div>
+      <div class="row-form">
+        <div class="field-group" style="flex:2">
+          <label>Название</label>
+          <input type="text" id="rh-name" placeholder="Электричество">
+        </div>
+        <div class="field-group">
+          <label>₸ / час</label>
+          <input type="number" id="rh-val" placeholder="25">
+        </div>
+        <button class="btn btn-p" onclick="addRate('hourly')" style="margin-top:16px">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">За партию <span class="rtb">÷ штук в партии</span></div>
+      <div id="rlist-p"></div>
+      <div class="row-form">
+        <div class="field-group" style="flex:2">
+          <label>Название</label>
+          <input type="text" id="rp-name" placeholder="Амортизация">
+        </div>
+        <div class="field-group">
+          <label>₸ / партию</label>
+          <input type="number" id="rp-val" placeholder="285">
+        </div>
+        <button class="btn btn-p" onclick="addRate('perBatch')" style="margin-top:16px">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Аренда <span class="rtb">÷ штук в партии</span></div>
+      <div id="rlist-a"></div>
+      <div class="row-form">
+        <div class="field-group" style="flex:2">
+          <label>Название</label>
+          <input type="text" id="ra-name" placeholder="Аренда полки">
+        </div>
+        <div class="field-group">
+          <label>₸ / неделю</label>
+          <input type="number" id="ra-val" placeholder="2000">
+        </div>
+        <button class="btn btn-p" onclick="addRate('rent')" style="margin-top:16px">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Пластик <span class="rtb">× граммы/шт</span></div>
+      <div class="mat-row">
+        <span class="mat-name">Пластик (цена за грамм)</span>
+        <div class="mat-val">
+          <input type="number" id="plastic-val" step="0.01" style="width:85px" onchange="D.rates.plastic.val=parseFloat(this.value)||0;save()">
+          <span>₸/г</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Материалы «за штуку» <span class="rtb">назначаются на товар</span></div>
+      <div id="rlist-m"></div>
+      <div class="row-form">
+        <div class="field-group" style="flex:2">
+          <label>Название</label>
+          <input type="text" id="mr-name" placeholder="Баночки, кольца...">
+        </div>
+        <div class="field-group">
+          <label>₸ / шт</label>
+          <input type="number" id="mr-val" placeholder="23">
+        </div>
+        <button class="btn btn-p" onclick="addMat()" style="margin-top:16px">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- НЕДЕЛИ -->
+  <div id="p-n" class="panel">
+    <div class="card">
+      <div class="card-title">Выручка и расходы по неделям</div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Период</th>
+              <th>Расходы ₸</th>
+              <th>Выручка ₸</th>
+              <th>Прибыль</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="nbody"></tbody>
+        </table>
+      </div>
+      <div class="row-form">
+        <div class="field-group" style="flex:2">
+          <label>Период</label>
+          <input type="text" id="nw" placeholder="19–25 мая 2026">
+        </div>
+        <button class="btn btn-p" onclick="addW()" style="margin-top:16px">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Добавить неделю
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ИТОГИ -->
+  <div id="p-i" class="panel">
+    <div id="met-i" class="metrics"></div>
+    <div class="card">
+      <div class="card-title">Детальная себестоимость по товарам</div>
+      <div id="ilist"></div>
+    </div>
+  </div>
+
+  <!-- ИИ СОВЕТНИК -->
+  <div id="p-ai" class="panel">
+    <div class="card">
+      <div class="card-title">Быстрый расчёт цены</div>
+      <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">
+        <div class="field-group" style="flex:2;min-width:140px">
+          <label>Товар</label>
+          <select id="ai-tovar"></select>
+        </div>
+        <div class="field-group">
+          <label>Целевая маржа</label>
+          <select id="ai-margin">
+            <option value="30">30%</option>
+            <option value="50" selected>50%</option>
+            <option value="70">70%</option>
+            <option value="100">100%</option>
+            <option value="150">150%</option>
+          </select>
+        </div>
+        <button class="btn btn-p" onclick="quickAnalyze()" style="flex-shrink:0">
+          <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          Рассчитать
+        </button>
+      </div>
+      <div id="price-suggestions"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">ИИ-консультант · Gemini Flash</div>
+      <div class="chat-wrap" id="chat-history"></div>
+      <div class="chat-input-row">
+        <textarea id="ai-question" rows="2" placeholder="Как лучше поставить цену на брелки? Где я теряю прибыль?"></textarea>
+        <button class="btn btn-p" onclick="askAI()">
+          <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+      <div class="quick-btns">
+        <button class="btn btn-sm" onclick="quickQ('Какую наценку ставить на мои товары?')">Наценка?</button>
+        <button class="btn btn-sm" onclick="quickQ('Где я теряю прибыль?')">Где теряю?</button>
+        <button class="btn btn-sm" onclick="quickQ('Сравни себестоимость всех товаров')">Сравни товары</button>
+        <button class="btn btn-sm" onclick="quickQ('Как снизить себестоимость?')">Снизить себест.</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<div class="toast-wrap" id="toasts"></div>
+
+<script>
+// ===== DATA & STATE =====
+const DEF = {
+  rates: {
+    hourly: [
+      {id:'elec',name:'Электричество',val:25},
+      {id:'nozzle',name:'Сопло (износ)',val:28},
+      {id:'plate',name:'Пластина (износ)',val:1}
+    ],
+    perBatch: [
+      {id:'amor',name:'Амортизация',val:285},
+      {id:'glue',name:'Клей',val:2},
+      {id:'lub',name:'Смазка',val:20},
+      {id:'paper',name:'Бумага',val:1}
+    ],
+    rent: [{id:'rent',name:'Аренда полки (в неделю)',val:2000}],
+    plastic: {id:'plastic',name:'Пластик',val:11}
+  },
+  materials: [
+    {id:'m1',name:'Баночки',val:23.5},
+    {id:'m2',name:'Кольца',val:20},
+    {id:'m3',name:'Цепочка 6 см',val:50},
+    {id:'m4',name:'Краска (1 цвет)',val:24}
+  ],
+  tovary: [
+    {id:'t1',name:'Вязанные собачки',plastic:21.53,qty:6,hours:19.8,price:0,mats:[]},
+    {id:'t2',name:'Брелки собачки',plastic:13.86,qty:16,hours:16.8,price:0,mats:[{mid:'m2',qty:1},{mid:'m3',qty:1}]},
+    {id:'t3',name:'Собака из мема на серфе',plastic:40,qty:2,hours:4.4,price:0,mats:[{mid:'m4',qty:4}]}
+  ],
+  nedeli: [
+    {id:'n1',week:'4–10 мая 2026',rashod:0,vyr:0},
+    {id:'n2',week:'11–17 мая 2026',rashod:0,vyr:0},
+    {id:'n3',week:'18–24 мая 2026',rashod:0,vyr:0}
+  ]
+};
+
+let D = JSON.parse(JSON.stringify(DEF));
+let chatHistory = [];
+let saveTimer = null;
+let saving = false;
+
+// ===== UTILS =====
+function uid() { return 'x' + Math.random().toString(36).slice(2,8); }
+function fmt(n) { return Number(n||0).toLocaleString('ru-RU',{maximumFractionDigits:0}); }
+function fmtD(n,d=1) { return Number(n||0).toFixed(d); }
+
+function svg(path, extra='') {
+  return `<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;vertical-align:middle;flex-shrink:0" ${extra}>${path}</svg>`;
+}
+
+// ===== SYNC STATUS =====
+function setSyncStatus(state, label) {
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  dot.className = 'sync-dot' + (state === 'ok' ? '' : state === 'loading' ? ' loading' : ' error');
+  lbl.textContent = label;
+}
+
+// ===== LOAD FROM SERVER =====
+async function loadData() {
+  try {
+    setSyncStatus('loading', 'Загрузка...');
+    const resp = await fetch('/api/data');
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    D = data;
+    setSyncStatus('ok', 'Синхронизировано');
+  } catch(e) {
+    console.warn('Используем локальные данные:', e);
+    // Fallback to localStorage
+    try {
+      const ls = localStorage.getItem('buh_v4');
+      if (ls) D = JSON.parse(ls);
+    } catch {}
+    setSyncStatus('error', 'Оффлайн-режим');
+    toast('Нет связи с сервером. Работаем локально.', 'err');
+  }
+  document.getElementById('loading-overlay').style.display = 'none';
+  render();
+}
+
+// ===== SAVE TO SERVER =====
+function save() {
+  // Дебаунс: сохраняем через 600ms после последнего изменения
+  clearTimeout(saveTimer);
+  setSyncStatus('loading', 'Сохранение...');
+  saveTimer = setTimeout(async () => {
+    try {
+      const resp = await fetch('/api/data', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(D)
+      });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      setSyncStatus('ok', 'Сохранено');
+      // Также сохраняем в localStorage как резерв
+      try { localStorage.setItem('buh_v4', JSON.stringify(D)); } catch {}
+    } catch(e) {
+      setSyncStatus('error', 'Ошибка сохранения');
+      toast('Ошибка сохранения. Данные сохранены локально.', 'err');
+      try { localStorage.setItem('buh_v4', JSON.stringify(D)); } catch {}
+    }
+  }, 600);
+}
+
+// ===== COST CALCULATION =====
+function costOf(t) {
+  const r = D.rates;
+  const hourRate = r.hourly.reduce((s,x)=>s+x.val,0);
+  const batchFixed = r.perBatch.reduce((s,x)=>s+x.val,0);
+  const rentTotal = r.rent.reduce((s,x)=>s+x.val,0);
+  const rentPerUnit = rentTotal / (t.qty||1);
+  const plasticCost = r.plastic.val * (t.plastic||0);
+  const hourCost = hourRate * (t.hours||0);
+  const batchPerUnit = batchFixed / (t.qty||1);
+  let matCost = 0;
+  (t.mats||[]).forEach(m => {
+    const mat = D.materials.find(x=>x.id===m.mid);
+    if (mat) matCost += mat.val * (m.qty||1);
+  });
+  const total = plasticCost + hourCost + batchPerUnit + rentPerUnit + matCost;
+  return {plasticCost, hourCost, batchPerUnit, rentPerUnit, matCost, total};
+}
+
+// ===== TOAST =====
+function toast(msg, type='') {
+  const wrap = document.getElementById('toasts');
+  const el = document.createElement('div');
+  el.className = 'toast' + (type ? ' '+type : '');
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(() => { el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(()=>el.remove(),300); }, 2500);
+}
+
+// ===== RENDER ТОВАРЫ =====
+function renderT() {
+  const met = document.getElementById('met-t');
+  const list = document.getElementById('tlist');
+  if (!D.tovary.length) {
+    list.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text3)">Добавьте первый товар</div>';
+    met.innerHTML = '';
+    return;
+  }
+  const costs = D.tovary.map(t=>costOf(t));
+  const avgCost = costs.reduce((s,c)=>s+c.total,0)/D.tovary.length;
+  const priced = D.tovary.filter(t=>t.price>0);
+  const avgM = priced.length ? priced.reduce((s,t)=>{const c=costOf(t);return s+(t.price-c.total)/c.total*100;},0)/priced.length : null;
+  met.innerHTML = `
+    <div class="met"><div class="met-l">Товаров</div><div class="met-v p">${D.tovary.length}</div></div>
+    <div class="met"><div class="met-l">Средняя себест.</div><div class="met-v">${fmt(avgCost)} ₸</div></div>
+    <div class="met"><div class="met-l">Средняя маржа</div><div class="met-v ${avgM===null?'':avgM>=0?'g':'r'}">${avgM===null?'—':Math.round(avgM)+'%'}</div></div>
+    <div class="met"><div class="met-l">С заданной ценой</div><div class="met-v">${priced.length}</div></div>
+  `;
+
+  list.innerHTML = D.tovary.map((t,i)=>{
+    const c = costs[i];
+    const margin = t.price > 0 ? t.price - c.total : null;
+    const mpct = margin !== null && c.total > 0 ? (margin/c.total)*100 : null;
+    const mcls = mpct === null ? 'bi' : mpct >= 0 ? 'bs' : 'br';
+    const availMats = D.materials.filter(m=>!(t.mats||[]).find(x=>x.mid===m.id));
+    const matRows = (t.mats||[]).map(m=>{
+      const mat = D.materials.find(x=>x.id===m.mid);
+      return mat ? `<div class="mat-row" style="padding:5px 0">
+        <span class="mat-name" style="font-size:12px;color:var(--text2)">${mat.name}</span>
+        <div class="mat-val">
+          <input type="number" value="${m.qty}" min="0" step="1" style="width:50px" onchange="setMatQty('${t.id}','${m.mid}',this.value)">
+          <span>× ${fmt(mat.val)} = ${fmt(mat.val*m.qty)} ₸</span>
+          <button class="btn btn-d" style="padding:3px 5px" onclick="removeMat('${t.id}','${m.mid}')">
+            ${svg('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>')}
+          </button>
+        </div>
+      </div>` : '';
+    }).join('');
+
+    return `<div class="tovar-card">
+      <div class="tovar-head">
+        <div style="flex:1">
+          <input type="text" value="${t.name}" style="font-weight:700;font-size:14px;background:transparent;border:none;border-bottom:1px solid var(--border);border-radius:0;padding:2px 0;width:100%" onchange="setT('${t.id}','name',this.value)">
+        </div>
+        <div class="tovar-cost">
+          <div class="tovar-cost-val">${fmt(c.total)} ₸</div>
+          ${margin!==null ? `<span class="badge ${mcls}">${mpct>=0?'+':''}${Math.round(mpct)}% · ${margin>=0?'+':''}${fmt(margin)} ₸</span>` : `<button class="btn btn-sm" style="font-size:11px;margin-top:4px" onclick="quickAnalyzeFor('${t.id}')">${svg('<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>')} Цена</button>`}
+          <div style="margin-top:6px">
+            <button class="btn btn-d btn-sm" onclick="delT('${t.id}')">${svg('<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/>')}</button>
+          </div>
+        </div>
+      </div>
+      <div class="tovar-fields">
+        <div class="field-group"><label>Пластик г/шт</label><input type="number" value="${t.plastic}" step="0.01" onchange="setT('${t.id}','plastic',this.value)"></div>
+        <div class="field-group"><label>Штук в партии</label><input type="number" value="${t.qty}" onchange="setT('${t.id}','qty',this.value)"></div>
+        <div class="field-group"><label>Часов печати</label><input type="number" value="${t.hours}" step="0.1" onchange="setT('${t.id}','hours',this.value)"></div>
+        <div class="field-group"><label>Цена продажи ₸</label><input type="number" value="${t.price||''}" placeholder="—" onchange="setT('${t.id}','price',this.value)"></div>
+      </div>
+      <div class="cost-mini">
+        ${[['Пластик',c.plasticCost],['Работа',c.hourCost],['Пост./шт',c.batchPerUnit],['Аренда/шт',c.rentPerUnit],['Матер.',c.matCost]].map(([l,v])=>`
+        <div class="cost-mini-item">
+          <div class="cl">${l}</div>
+          <div class="cv">${fmtD(v,0)} ₸</div>
+        </div>`).join('')}
+      </div>
+      <div class="mat-section">
+        <div class="mat-section-title">Материалы на штуку</div>
+        ${matRows || '<div style="font-size:12px;color:var(--text3);padding:4px 0">Нет материалов</div>'}
+        ${availMats.length ? `<div class="mat-add-row">
+          <select id="ms-${t.id}" style="flex:1;font-size:12px">${availMats.map(m=>`<option value="${m.id}">${m.name} (${fmt(m.val)} ₸)</option>`).join('')}</select>
+          <button class="btn btn-sm" onclick="addMatToT('${t.id}')">${svg('<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>')} Добавить</button>
+        </div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ===== RENDER СТАВКИ =====
+function renderR() {
+  const mkRow = (r, type, del=true) => `<div class="mat-row">
+    <span class="mat-name">${r.name}</span>
+    <div class="mat-val">
+      <input type="number" value="${r.val}" step="0.01" style="width:90px" onchange="setRate('${type}','${r.id}',this.value)">
+      <span>₸</span>
+      ${del ? `<button class="btn btn-d" style="padding:3px 5px" onclick="delRate('${type}','${r.id}')">${svg('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>')}</button>` : '<span style="width:24px"></span>'}
+    </div>
+  </div>`;
+  document.getElementById('rlist-h').innerHTML = D.rates.hourly.map(r=>mkRow(r,'hourly')).join('');
+  document.getElementById('rlist-p').innerHTML = D.rates.perBatch.map(r=>mkRow(r,'perBatch')).join('');
+  document.getElementById('rlist-a').innerHTML = D.rates.rent.map(r=>mkRow(r,'rent')).join('');
+  document.getElementById('rlist-m').innerHTML = D.materials.map(m=>`<div class="mat-row">
+    <span class="mat-name">${m.name}</span>
+    <div class="mat-val">
+      <input type="number" value="${m.val}" step="0.01" style="width:90px" onchange="setMR('${m.id}',this.value)">
+      <span>₸/шт</span>
+      <button class="btn btn-d" style="padding:3px 5px" onclick="delMat('${m.id}')">${svg('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>')}</button>
+    </div>
+  </div>`).join('');
+  const pv = document.getElementById('plastic-val');
+  if (pv) pv.value = D.rates.plastic.val;
+}
+
+// ===== RENDER НЕДЕЛИ =====
+function renderN() {
+  const tbody = document.getElementById('nbody');
+  if (!D.nedeli.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:1.5rem;color:var(--text3)">Нет недель</td></tr>';
+    return;
+  }
+  tbody.innerHTML = D.nedeli.map(n=>{
+    const p = (n.vyr||0) - (n.rashod||0);
+    const cls = p > 0 ? 'var(--green)' : p < 0 ? 'var(--red)' : 'var(--text)';
+    return `<tr>
+      <td>${n.week}</td>
+      <td><input type="number" value="${n.rashod||''}" placeholder="0" style="max-width:110px" onchange="setN('${n.id}','rashod',this.value)"></td>
+      <td><input type="number" value="${n.vyr||''}" placeholder="0" style="max-width:110px" onchange="setN('${n.id}','vyr',this.value)"></td>
+      <td style="color:${cls};font-weight:700;font-family:var(--font-head);font-size:13px">${p>=0?'+':''}${fmt(p)} ₸</td>
+      <td><button class="btn btn-d btn-sm" onclick="delN('${n.id}')">${svg('<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>')}</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ===== RENDER ИТОГИ =====
+function renderI() {
+  const totR = D.nedeli.reduce((s,n)=>s+(n.rashod||0),0);
+  const totV = D.nedeli.reduce((s,n)=>s+(n.vyr||0),0);
+  const totP = totV - totR;
+  document.getElementById('met-i').innerHTML = `
+    <div class="met"><div class="met-l">Выручка</div><div class="met-v g">${fmt(totV)} ₸</div></div>
+    <div class="met"><div class="met-l">Расходы</div><div class="met-v r">${fmt(totR)} ₸</div></div>
+    <div class="met"><div class="met-l">Чистая прибыль</div><div class="met-v ${totP>=0?'g':'r'}">${totP>=0?'+':''}${fmt(totP)} ₸</div></div>
+    <div class="met"><div class="met-l">Недель</div><div class="met-v p">${D.nedeli.length}</div></div>
+  `;
+  const il = document.getElementById('ilist');
+  if (!D.tovary.length) { il.innerHTML='<div style="text-align:center;padding:2rem;color:var(--text3)">Добавьте товары</div>'; return; }
+  il.innerHTML = D.tovary.map(t=>{
+    const c = costOf(t);
+    const margin = t.price > 0 ? t.price - c.total : null;
+    const mpct = margin !== null && c.total > 0 ? (margin/c.total)*100 : null;
+    const cls = mpct===null?'bi':mpct>=0?'bs':'br';
+    const pctOf = v => c.total > 0 ? Math.round(v/c.total*100) : 0;
+    return `<div class="detail-card">
+      <div class="detail-head">
+        <div style="font-weight:700;font-size:14px">${t.name}</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-family:var(--font-head);font-size:18px;font-weight:700">${fmt(c.total)} ₸</span>
+          ${margin!==null ? `<span class="badge ${cls}">${mpct>=0?'+':''}${Math.round(mpct)}% · ${margin>=0?'+':''}${fmt(margin)} ₸</span>` : '<span class="badge bi">цена не задана</span>'}
+        </div>
+      </div>
+      <div class="detail-bars">
+        ${[['Пластик',c.plasticCost],['Работа',c.hourCost],['Пост./шт',c.batchPerUnit],['Аренда/шт',c.rentPerUnit],['Матер.',c.matCost]].map(([l,v])=>`
+        <div class="detail-bar">
+          <div class="dl">${l}</div>
+          <div class="dv">${fmtD(v,0)} ₸</div>
+          <div class="dp">${pctOf(v)}%</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ===== RENDER ИИ =====
+function renderAI() {
+  const sel = document.getElementById('ai-tovar');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = D.tovary.length
+    ? D.tovary.map(t=>`<option value="${t.id}" ${t.id===cur?'selected':''}>${t.name}</option>`).join('')
+    : '<option>Нет товаров</option>';
+}
+
+function render() { renderT(); renderR(); renderN(); renderI(); renderAI(); }
+
+// ===== TAB SWITCH =====
+function sw(id) {
+  const ids = ['t','r','n','i','ai'];
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',ids[i]===id));
+  ids.forEach(x=>{ const p=document.getElementById('p-'+x); if(p) p.classList.toggle('active',x===id); });
+  if (id==='ai') renderAI();
+}
+
+// ===== QUICK ANALYZE =====
+function quickAnalyzeFor(tid) { sw('ai'); setTimeout(()=>{ const s=document.getElementById('ai-tovar'); if(s){s.value=tid;quickAnalyze();} },100); }
+
+function quickAnalyze() {
+  const sel = document.getElementById('ai-tovar');
+  const margSel = document.getElementById('ai-margin');
+  if (!sel||!D.tovary.length) return;
+  const t = D.tovary.find(x=>x.id===sel.value)||D.tovary[0];
+  const c = costOf(t);
+  const targetM = parseInt(margSel.value)||50;
+  const opts = [
+    {label:'Минимальная',desc:'Покрывает расходы',mult:1.1},
+    {label:'Умеренная',desc:`~${targetM}% маржа`,mult:1+targetM/100},
+    {label:'Премиум',desc:'Высокая маржа',mult:1+(targetM*1.6)/100},
+  ];
+  const div = document.getElementById('price-suggestions');
+  div.innerHTML = `<div style="font-size:13px;color:var(--text2);margin-bottom:8px">${t.name} · себестоимость <strong style="color:var(--text)">${fmt(c.total)} ₸</strong></div>
+  <div class="price-opts">
+    ${opts.map((o,i)=>{
+      const price = Math.ceil(c.total*o.mult/10)*10;
+      const margin = price - c.total;
+      const mpct = Math.round((margin/c.total)*100);
+      return `<div class="price-opt ${i===1?'selected':''}" onclick="selectPrice(this,'${t.id}',${price})">
+        <div class="price-opt-label">${o.label}</div>
+        <div class="price-opt-desc">${o.desc}</div>
+        <div class="price-opt-val">${fmt(price)} ₸</div>
+        <span class="badge bs">+${mpct}% · +${fmt(margin)} ₸</span>
+      </div>`;
+    }).join('')}
+  </div>
+  <div style="margin-top:8px;font-size:12px;color:var(--text3)">Нажмите на вариант — цена применится к товару</div>`;
+}
+
+function selectPrice(el,tid,price) {
+  document.querySelectorAll('.price-opt').forEach(x=>x.classList.remove('selected'));
+  el.classList.add('selected');
+  const t = D.tovary.find(x=>x.id===tid);
+  if (t) { t.price=price; render(); save(); toast(`✓ Цена ${fmt(price)} ₸ применена к «${t.name}»`,'ok'); }
+}
+
+// ===== AI CHAT =====
+function buildSnapshot() {
+  return D.tovary.map(t=>{
+    const c=costOf(t);
+    const mats=(t.mats||[]).map(m=>{const mat=D.materials.find(x=>x.id===m.mid);return mat?`${mat.name}×${m.qty}(${fmt(mat.val*m.qty)}₸)`:''}).filter(Boolean).join(',');
+    return `${t.name}|пластик:${fmtD(t.plastic)}г|партия:${t.qty}шт|часов:${fmtD(t.hours)}|себест:${fmtD(c.total,0)}₸|цена:${t.price?fmt(t.price)+'₸':'нет'}|матер:${mats||'нет'}`;
+  }).join('\n') + '\n\nСтавки:' +
+  ` пластик ${D.rates.plastic.val}₸/г | почасовые: ${D.rates.hourly.map(r=>r.name+' '+r.val+'₸').join(',')} | партия: ${D.rates.perBatch.map(r=>r.name+' '+r.val+'₸').join(',')} | аренда: ${D.rates.rent.map(r=>r.name+' '+r.val+'₸').join(',')}`;
+}
+
+async function askAI() {
+  const inp = document.getElementById('ai-question');
+  const question = inp.value.trim();
+  if (!question) return;
+  inp.value = '';
+  addMsg(question,'user');
+  const loadId = 'load-'+uid();
+  addMsg('<span class="typing"></span>','ai',loadId,true);
+
+  try {
+    const msgs = [...chatHistory, {role:'user',content:question}];
+    const sysPrompt = `Ты — бухгалтер и бизнес-советник для малого бизнеса по 3D-печати игрушек и брелков. Отвечай коротко и конкретно. Используй реальные цифры из данных. Давай практичные советы. Отвечай на русском. Не используй markdown символы * # и т.д.\n\nДАННЫЕ ПОЛЬЗОВАТЕЛЯ:\n${buildSnapshot()}`;
+
+    const resp = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({messages: msgs, systemPrompt: sysPrompt})
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error||'Ошибка');
+    const reply = data.reply || 'Нет ответа';
+    chatHistory.push({role:'user',content:question});
+    chatHistory.push({role:'assistant',content:reply});
+    if (chatHistory.length > 12) chatHistory = chatHistory.slice(-12);
+    const el = document.getElementById(loadId);
+    if (el) { el.innerHTML = reply; el.classList.remove('thinking'); }
+  } catch(e) {
+    const el = document.getElementById(loadId);
+    if (el) { el.textContent = 'Ошибка: ' + e.message; el.classList.remove('thinking'); }
+  }
+}
+
+function addMsg(text,role,id,isThinking=false) {
+  const hist = document.getElementById('chat-history');
+  const div = document.createElement('div');
+  div.className = `chat-msg chat-${role}` + (isThinking?' thinking':'');
+  if (id) div.id = id;
+  div.innerHTML = text;
+  hist.appendChild(div);
+  div.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function quickQ(q) { document.getElementById('ai-question').value=q; askAI(); }
+
+// ===== DATA MUTATIONS =====
+function addT() {
+  const name = document.getElementById('nn').value.trim();
+  if (!name) { toast('Введите название товара','err'); return; }
+  D.tovary.push({id:uid(),name,plastic:parseFloat(document.getElementById('np').value)||0,qty:parseInt(document.getElementById('nq').value)||1,hours:parseFloat(document.getElementById('nh').value)||0,price:parseFloat(document.getElementById('npr').value)||0,mats:[]});
+  ['nn','np','nq','nh','npr'].forEach(x=>document.getElementById(x).value='');
+  render(); save(); toast('Товар добавлен','ok');
+}
+function delT(id) { D.tovary=D.tovary.filter(t=>t.id!==id); render(); save(); }
+function setT(id,k,v) { const t=D.tovary.find(x=>x.id===id); if(t){t[k]=k==='name'?v:parseFloat(v)||0; render(); save();} }
+
+function addRate(type) {
+  const prefix = {hourly:'rh',perBatch:'rp',rent:'ra'}[type];
+  const name = document.getElementById(prefix+'-name').value.trim();
+  const val = parseFloat(document.getElementById(prefix+'-val').value)||0;
+  if (!name) return;
+  D.rates[type].push({id:uid(),name,val});
+  document.getElementById(prefix+'-name').value='';
+  document.getElementById(prefix+'-val').value='';
+  render(); save();
+}
+function delRate(type,id) { D.rates[type]=D.rates[type].filter(r=>r.id!==id); render(); save(); }
+function setRate(type,id,v) { const r=D.rates[type].find(x=>x.id===id); if(r){r.val=parseFloat(v)||0; render(); save();} }
+
+function setMR(id,v) { const m=D.materials.find(x=>x.id===id); if(m){m.val=parseFloat(v)||0; render(); save();} }
+function delMat(id) { D.materials=D.materials.filter(m=>m.id!==id); D.tovary.forEach(t=>{t.mats=(t.mats||[]).filter(m=>m.mid!==id);}); render(); save(); }
+function addMat() {
+  const name=document.getElementById('mr-name').value.trim();
+  const val=parseFloat(document.getElementById('mr-val').value)||0;
+  if(!name) return;
+  D.materials.push({id:uid(),name,val});
+  document.getElementById('mr-name').value='';
+  document.getElementById('mr-val').value='';
+  render(); save();
+}
+function addMatToT(tid) { const sel=document.getElementById('ms-'+tid); if(!sel)return; const mid=sel.value; const t=D.tovary.find(x=>x.id===tid); if(t&&mid&&!t.mats.find(m=>m.mid===mid)){t.mats.push({mid,qty:1}); render(); save();} }
+function setMatQty(tid,mid,v) { const t=D.tovary.find(x=>x.id===tid); if(t){const m=t.mats.find(x=>x.mid===mid); if(m){m.qty=parseFloat(v)||0; render(); save();}} }
+function removeMat(tid,mid) { const t=D.tovary.find(x=>x.id===tid); if(t){t.mats=t.mats.filter(m=>m.mid!==mid); render(); save();} }
+
+function addW() { const w=document.getElementById('nw').value.trim(); if(!w)return; D.nedeli.push({id:uid(),week:w,rashod:0,vyr:0}); document.getElementById('nw').value=''; render(); save(); }
+function delN(id) { D.nedeli=D.nedeli.filter(n=>n.id!==id); render(); save(); }
+function setN(id,k,v) { const n=D.nedeli.find(x=>x.id===id); if(n){n[k]=parseFloat(v)||0; render(); save();} }
+
+// Enter в инпутах
+document.addEventListener('keydown', e => {
+  if (e.key==='Enter' && e.target.id==='ai-question') { e.preventDefault(); askAI(); }
+});
+
+// ===== INIT =====
+loadData();
+</script>
+</body>
+</html>
