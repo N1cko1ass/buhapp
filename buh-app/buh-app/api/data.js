@@ -1,7 +1,24 @@
 // api/data.js — Общее хранилище данных через Vercel KV (Redis)
 // Все пользователи видят и редактируют одни данные
 
-import { kv } from '@vercel/kv';
+const UPSTASH_URL = process.env.KV_REST_API_URL;
+const UPSTASH_TOKEN = process.env.KV_REST_API_TOKEN;
+
+async function kvGet(key) {
+  const r = await fetch(`${UPSTASH_URL}/get/${key}`, {
+    headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` }
+  });
+  const d = await r.json();
+  return d.result ? JSON.parse(d.result) : null;
+}
+
+async function kvSet(key, value) {
+  await fetch(`${UPSTASH_URL}/set/${key}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${UPSTASH_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(JSON.stringify(value))
+  });
+}
 
 const DATA_KEY = 'buh_shared_data';
 
@@ -47,10 +64,10 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
-      let data = await kv.get(DATA_KEY);
+      let data = await kvGet(DATA_KEY);
       if (!data) {
         data = DEFAULT_DATA;
-        await kv.set(DATA_KEY, data);
+        await kvSet(DATA_KEY, data);
       }
       return res.status(200).json(data);
     }
@@ -60,14 +77,13 @@ export default async function handler(req, res) {
       if (!newData || typeof newData !== 'object') {
         return res.status(400).json({ error: 'Неверный формат данных' });
       }
-      await kv.set(DATA_KEY, newData);
+      await kvSet(DATA_KEY, newData);
       return res.status(200).json({ ok: true });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
     console.error('KV error:', err);
-    // Fallback: если KV не настроен, возвращаем данные из тела запроса
     if (req.method === 'GET') {
       return res.status(200).json(DEFAULT_DATA);
     }
