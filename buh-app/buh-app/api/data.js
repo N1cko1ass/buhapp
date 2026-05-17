@@ -1,6 +1,3 @@
-// api/data.js — Общее хранилище данных через Vercel KV (Redis)
-// Все пользователи видят и редактируют одни данные
-
 const UPSTASH_URL = process.env.KV_REST_API_URL;
 const UPSTASH_TOKEN = process.env.KV_REST_API_TOKEN;
 
@@ -9,7 +6,14 @@ async function kvGet(key) {
     headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` }
   });
   const d = await r.json();
-  return d.result ? JSON.parse(d.result) : null;
+  if (!d.result) return null;
+  try {
+    const parsed = JSON.parse(d.result);
+    if (typeof parsed === 'string') return JSON.parse(parsed);
+    return parsed;
+  } catch {
+    return null;
+  }
 }
 
 async function kvSet(key, value) {
